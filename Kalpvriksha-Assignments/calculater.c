@@ -1,3 +1,5 @@
+//new another code also been pasted below this code which has some issues & needs to improve more
+//This is the Previous code which i understood well and did not modified anything is:
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
@@ -124,4 +126,163 @@ int main() {
     }
 
     return 0;
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// newer other Code which needs to improve is:
+
+#include<stdio.h>
+#include<ctype.h>
+
+char *ptr, *pv, *stack;
+int error;
+
+void skipWhiteSpace(){
+    while(*ptr!='\0' && *ptr==' ') ptr++;
+}
+
+void combineDigit(){
+    int value=0;
+    while(*ptr!='\0' && isdigit(*ptr)){
+        value+= (value*10) + (int) *ptr;
+        ptr++;
+    }
+    *ptr=(int)value;
+}
+
+void validate(){
+if(!isdigit(*ptr) || *ptr != '(' || *ptr != ')' || *ptr != '+' || *ptr != '-' || *ptr != '*' || *ptr != '/' || *ptr != '%'){
+            printf("This is An Invailid Expression!");
+            return;
+        }
+}
+
+void HigherOrderFunction(){
+    int ans;
+    switch(*ptr){
+        case '*':{
+            skipWhiteSpace();
+            ptr++;
+            stack--;
+            ans = (int)*stack*(*ptr);
+            *stack = ans;
+            ptr++;
+        }
+        break;
+        case '/':{
+            skipWhiteSpace();
+            ptr++;
+            stack--;
+            ans = (int)*stack/(*ptr);
+            *stack = ans;
+            ptr++;
+        }
+        break;
+        case '%':{
+            skipWhiteSpace();
+            ptr++;
+            stack--;
+            ans = (int)*stack%(*ptr);
+            *stack = ans;
+            ptr++;
+        }
+        break;
+        case '(':{
+            int a;
+            char *endCheck = ptr;
+            while(*endCheck!='\0' && *ptr!=')') endCheck++;
+            if(*endCheck==')'){
+                *pv = *ptr;  //innerExpression between cirly breckits-> ()
+                *stack = MainProcess(pv);
+                *ptr=*endCheck;
+                *stack++;
+            }             
+        }
+        break;
+    }
+}
+
+int BelowOrderFunction(){
+    int sum=(int)*stack;
+    stack++;
+    while(*stack!='\0'){
+        switch (*stack)
+        {
+        case '+':{
+                stack++;
+                sum=(int)sum+(*stack);
+                stack++;
+            }
+            break;
+            
+            case '-':{
+                stack++;
+                sum=(int)sum-(*stack);
+                stack++;
+            }
+            break;
+        }
+    }
+    return sum;
+}
+
+int MainProcess(char *ptr){
+    skipWhiteSpace();
+    validate();
+    combineDigit();
+    while(*ptr != '\0'){
+        if(*ptr == ')'){
+            printf("Invailid Expression!");
+            return 0;
+        }
+        else if(*ptr=='*' || *ptr=='/' || *ptr=='%' || *ptr=='(') HigherOrderFunction();
+        else if(*ptr=='\0') BelowOrderFunction();
+        else{
+            *stack=*ptr;
+            stack++;
+            ptr++;
+        }
+    }
+}
+
+int main(){
+    char string[100];
+    fgets(string,100,stdin);
+
+    char *xyz = string;
+    
+    int result = MainProcess(xyz);
+    return 0;
 }
