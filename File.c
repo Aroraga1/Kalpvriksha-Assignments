@@ -3,6 +3,7 @@
 #include <string.h>
 
 #define FILE_NAME "users.txt"
+int found;
 
 typedef struct {
     unsigned int id;       
@@ -98,6 +99,7 @@ void displayUsers() {
 
 void updateUser() {
     FILE *fp = fopen(FILE_NAME, "r");
+    found = 0;
     if (fp == NULL) {
         printf("Error opening file.\n");
         return;
@@ -117,7 +119,6 @@ void updateUser() {
     }
 
     unsigned int id = getUnsignedInt("Enter ID to update: ");
-    int found = 0;
 
     for (int i = 0; i < count; i++) {
         if (users[i].id == id) {
@@ -167,7 +168,7 @@ void deleteUser() {
     }
 
     unsigned int id = getUnsignedInt("Enter ID to delete: ");
-    int found = 0;
+    found = 0;
 
     for (int i = 0; i < count; i++) {
         if (users[i].id == id) {
@@ -190,9 +191,11 @@ void deleteUser() {
     }
     fclose(fp);
 
-    if (found)
+    if (found){
         printf("User deleted successfully!\n");
-    else
+    } 
+    else {
         printf("User with ID %u not found.\n", id);
+    }
 }
 
