@@ -10,9 +10,9 @@ int *stack;
 void skipWhiteSpace();
 int combineDigit();
 void HigherOrderOperations(char op, int operand2);
-void FirstPass(char *input);
-int SecondPass();
-int MainProcess(char *input);
+void HighOrderArithmaticOperation(char *input);
+int finalAddSubtractOperation();
+int mainProcess(char *input);
 
 void skipWhiteSpace(){
     while(*ptr!='\0' && *ptr==' ') ptr++;
@@ -52,7 +52,7 @@ void HigherOrderOperations(char op, int operand2){
     stack++; 
 }
 
-void FirstPass(char *input){
+void HighOrderArithmaticOperation(char *input){
     ptr = input;
     stack = arr; 
     
@@ -70,14 +70,11 @@ void FirstPass(char *input){
 
     while(*ptr != '\0'){
         skipWhiteSpace();
-        
         if(*ptr == '\0') break;
-        
         if(*ptr == '*' || *ptr == '/' || *ptr == '%'){
             char op = *ptr;
             ptr++; 
             skipWhiteSpace();
-            
             int operand2 = combineDigit(); 
             HigherOrderOperations(op, operand2); 
         }
@@ -86,7 +83,6 @@ void FirstPass(char *input){
             stack++;
             ptr++; 
             skipWhiteSpace();
-            
             if (isdigit(*ptr)) {
                  int num = combineDigit();
                  *stack = num;
@@ -105,27 +101,22 @@ void FirstPass(char *input){
     }
 }
 
-int SecondPass(){
+int finalAddSubtractOperation(){
     if (stack == arr || stack == arr + 1) {
         if (stack == arr + 1) return *arr; 
         return 0;
     }
-
     int result = *arr; 
     int *current = arr + 1;
-
     while (current < stack) {
         char op = (char)*current; 
         current++;
-        
         if (current >= stack) {
             printf("Error: Stack structure broken in Second Pass.\n");
             return 0;
         }
-
         int num = *current; 
         current++;
-
         switch (op) {
             case '+': result += num; break;
             case '-': result -= num; break;
@@ -137,25 +128,19 @@ int SecondPass(){
     return result;
 }
 
-int MainProcess(char *input){
-    
-    FirstPass(input);
-    
+int mainProcess(char *input){
+    HighOrderArithmaticOperation(input);
     if (stack == arr) {
         return 0;
     }
-    
-    return SecondPass();
+    return finalAddSubtractOperation();
 }
 
 int main(){
     char string[100];
     printf("Enter expression: ");
-    
     fgets(string, 100, stdin);
-    
-
-    int result = MainProcess(string);
+    int result = mainProcess(string);
     printf("Result: %d\n", result);
     return 0;
 }
