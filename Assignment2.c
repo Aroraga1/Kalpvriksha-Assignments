@@ -2,25 +2,69 @@
 #include<stdlib.h>
 #include<time.h>
 
-#define MAX_SIZE 10
+#define MAX_SIZE 100 
 #define INTENSITY_MAX 255 
+
 int sonarImage[MAX_SIZE][MAX_SIZE]; 
-int tempImage[MAX_SIZE][MAX_SIZE];
+const int ENCODE_BASE = INTENSITY_MAX + 1;
+
+int getAverage(int (*ptr)[MAX_SIZE], int N, int raw, int col) {
+    long long sum = 0;
+    int count = 0;
+    
+    for(int cellOuter = -1; cellOuter <= 1; cellOuter++) {
+        for(int cellInner = -1; cellInner <= 1; cellInner++) {
+            int i = raw + cellOuter; 
+            int j = col + cellInner; 
+            
+            if (i >= 0 && i < N && j >= 0 && j < N) {
+                int index = i * MAX_SIZE + j;
+                
+                int neighborValue = *(((int *)ptr) + index) % ENCODE_BASE; 
+                sum += neighborValue;
+                count++;
+            }
+        }
+    }
+    return (int)(sum / count);
+}
+
+void encodeNewValue(int (*ptr)[MAX_SIZE], int raw, int col, int avg) {
+    int index = raw * MAX_SIZE + col;
+    *(((int *)ptr) + index) += avg * ENCODE_BASE;
+}
+
+void decodeMatrix(int (*ptr)[MAX_SIZE], int N) {
+    for (int i = 0; i < N; i++) {
+        for (int j = 0; j < N; j++) {
+            int index = i * MAX_SIZE + j;
+            *(((int *)ptr) + index) /= ENCODE_BASE; 
+        }
+    }
+}
+
+void applySmoothing(int (*ptr)[MAX_SIZE], int N) {
+    for(int raw = 0; raw < N; raw++) {
+        for(int col = 0; col < N; col++) {
+            int avg = getAverage(ptr, N, raw, col); 
+            encodeNewValue(ptr, raw, col, avg); 
+        }
+    }
+    decodeMatrix(ptr, N); 
+}
 
 void generateMatrix(int N){
-    int *ptr = (int *)sonarImage; 
     for(int i=0; i<N; i++){
         for(int j=0; j<N; j++){
-            *(ptr + (i * MAX_SIZE) + j) = rand() % (INTENSITY_MAX + 1); 
+            *(((int *)sonarImage) + (i * MAX_SIZE) + j) = rand() % (INTENSITY_MAX + 1); 
         }
     }
 }
 
 void printImage(int (*ptr)[MAX_SIZE], int N){ 
-    int *base_ptr = (int *)ptr; 
     for(int i=0; i<N; i++){
         for(int j=0; j<N; j++){
-            printf("%4d", *(base_ptr + (i * MAX_SIZE) + j)); 
+            printf("%4d", *(((int *)ptr) + (i * MAX_SIZE) + j)); 
         }
         printf("\n"); 
     }
@@ -33,47 +77,20 @@ void swap(int *ptr1, int *ptr2){
 }
 
 void rotateMatrix(int (*ptr)[MAX_SIZE], int N){
-    int *ptrf = (int *)ptr;
+    int index1, index2;
+
     for(int i=0; i<N; i++){
         for(int j=i+1; j<N; j++){
-            swap(ptrf + (i * MAX_SIZE) + j, ptrf + (j * MAX_SIZE) + i);
+            index1 = i * MAX_SIZE + j;
+            index2 = j * MAX_SIZE + i;
+            swap(((int *)ptr) + index1, ((int *)ptr) + index2);
         }
     }
     for(int i=0; i<N; i++){
         for(int j=0; j<N/2; j++){
-            swap(ptrf + (i * MAX_SIZE) + j, ptrf + (i * MAX_SIZE) + (N - 1 - j));
-        }
-    }
-}
-
-void applySmoothing(int (*ptr)[MAX_SIZE], int N){
-    int *ptr_in = (int *)ptr; 
-    int *ptr_out = (int *)tempImage; 
-    int i,j;
-    for(int raw = 0; raw < N; raw++){
-        for(int col = 0; col < N; col++){
-            long long sum = 0;
-            int count = 0;
-            for(int ki = -1; ki <= 1; ki++){
-                for(int kj = -1; kj <= 1; kj++){
-                    i = raw + ki; 
-                    j = col + kj;        
-                    if(i >= 0 && i < N && j >= 0 && j < N){
-                        int index = i * MAX_SIZE + j;
-                        sum += *(ptr_in + index);
-                        count++;
-                    }
-                }
-            }
-            int avg = (int)(sum / count);
-            int output_index = raw * MAX_SIZE + col;
-            *(ptr_out + output_index) = avg;
-        }
-    }
-    for(int i = 0; i < N; i++){
-        for(int j = 0; j < N; j++){
-            int index = i * MAX_SIZE + j;
-            *(ptr_in + index) = *(ptr_out + index);
+            index1 = i * MAX_SIZE + j;
+            index2 = i * MAX_SIZE + (N - 1 - j);
+            swap(((int *)ptr) + index1, ((int *)ptr) + index2);
         }
     }
 }
@@ -83,18 +100,21 @@ int main(){
     int imageSize;
     printf("Enter matrix size (2-10): ");
     if (scanf("%d", &imageSize) != 1 || imageSize < 2 || imageSize > MAX_SIZE) {
-        printf("Invalid size or size < 3 entered. Filtering requires N >= 3.\n");
+        printf("Invalid size! It should be: 2>=N<=10.\n");
         return 0;
     }
     generateMatrix(imageSize);
-    printf("\nOriginal Randomly Generated Matrix:\n");
+    printf("\nGenerated Matrix:\n");
     printImage(sonarImage, imageSize); 
-    printf("\nMatrix after 90 degree Clockwise Rotation:\n");
+    
+    printf("\n90 degree Rotated Matrix :\n");
     rotateMatrix(sonarImage,imageSize);
     printImage(sonarImage,imageSize);
-    printf("\n");
-    applySmoothing(sonarImage, imageSize);
+    
+    
     printf("\nMatrix after Applying 3*3 Smoothing Filter:\n");
+    applySmoothing(sonarImage, imageSize);
     printImage(sonarImage, imageSize); 
+    
     return 0; 
 }
