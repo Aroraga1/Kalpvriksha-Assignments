@@ -8,13 +8,13 @@
 int sonarImage[MAX_SIZE][MAX_SIZE]; 
 const int ENCODE_BASE = INTENSITY_MAX + 1;
 
-int getAverage(int (*ptr)[MAX_SIZE], int N, int raw, int col) {
+int getAverage(int (*ptr)[MAX_SIZE], int N, int row, int col) {
     long long sum = 0;
     int count = 0;
     
     for(int cellOuter = -1; cellOuter <= 1; cellOuter++) {
         for(int cellInner = -1; cellInner <= 1; cellInner++) {
-            int i = raw + cellOuter; 
+            int i = row + cellOuter; 
             int j = col + cellInner; 
             
             if (i >= 0 && i < N && j >= 0 && j < N) {
@@ -29,8 +29,8 @@ int getAverage(int (*ptr)[MAX_SIZE], int N, int raw, int col) {
     return (int)(sum / count);
 }
 
-void encodeNewValue(int (*ptr)[MAX_SIZE], int raw, int col, int avg) {
-    int index = raw * MAX_SIZE + col;
+void encodeNewValue(int (*ptr)[MAX_SIZE], int row, int col, int avg) {
+    int index = row * MAX_SIZE + col;
     *(((int *)ptr) + index) += avg * ENCODE_BASE;
 }
 
@@ -44,10 +44,10 @@ void decodeMatrix(int (*ptr)[MAX_SIZE], int N) {
 }
 
 void applySmoothing(int (*ptr)[MAX_SIZE], int N) {
-    for(int raw = 0; raw < N; raw++) {
+    for(int row = 0; row < N; row++) {
         for(int col = 0; col < N; col++) {
-            int avg = getAverage(ptr, N, raw, col); 
-            encodeNewValue(ptr, raw, col, avg); 
+            int avg = getAverage(ptr, N, row, col); 
+            encodeNewValue(ptr, row, col, avg); 
         }
     }
     decodeMatrix(ptr, N); 
