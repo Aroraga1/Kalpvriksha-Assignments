@@ -16,6 +16,9 @@ int getValidInput(void *var, char type, int size) {
     
     if (type == 'd') {
         result = scanf("%d", (int*)var);
+        if(result<0){
+            result=0;
+        }
     } else if (type == 'f') {
         result = scanf("%f", (float*)var);
     } else if (type == 's') {
@@ -35,6 +38,13 @@ int getValidInput(void *var, char type, int size) {
     }
     
     return 1;
+}
+
+int checkUnique(struct Product *p, int currCount, int id){   
+    for(int i=0; i<currCount; i++){
+        if((p+i)->id == id) return 0;                        
+    }
+    return 1;                                                
 }
 
 void printProduct(struct Product *p){
@@ -69,24 +79,34 @@ void printOptions(){
     printf("\nEnter your choice: ");
 }
  
-void getAllDetails(struct Product *p, int count){
+void getAllDetails(struct Product *p, int ind, int count){
     if (p == NULL) {
         printf("\nSomething wrong, no details found!");
         return;
     }
     printf("\nEnter the Details of %d product->",count);
-    
+
     printf("\nid:");
-    while (!getValidInput(&(p->id), 'd', 0)) { printf("Invalid ID.\nRe-enter: "); }
-    
+    while (1) {                                              
+        if (!getValidInput(&((p+ind)->id), 'd', 0)) {
+            printf("Invalid ID.\nRe-enter: ");
+            continue;
+        }
+        if (!checkUnique(p, ind, (p+ind)->id)) {              
+            printf("Please enter an unique id: ");
+            continue;
+        }
+        break;
+    }
+
     printf("name:");
-    while (!getValidInput(p->name, 's', 51)) { printf("Invalid Name. \nRe-enter: "); }
+    while (!getValidInput((p+ind)->name, 's', 51)) { printf("Invalid Name. \nRe-enter: "); }
     
     printf("Price:");
-    while (!getValidInput(&(p->price), 'f', 0)) { printf("Invalid Price. \nRe-enter: "); }
+    while (!getValidInput(&((p+ind)->price), 'f', 0)) { printf("Invalid Price. \nRe-enter: "); }
     
     printf("Quantity:");
-    while (!getValidInput(&(p->quantity), 'd', 0)) { printf("Invalid Quantity. \nRe-enter: "); }
+    while (!getValidInput(&((p+ind)->quantity), 'd', 0)) { printf("Invalid Quantity. \nRe-enter: "); }
 }
 
 void updateQuantity(struct Product *p, int currCount){
@@ -113,7 +133,6 @@ void updateQuantity(struct Product *p, int currCount){
              printf("\ninvalid quantity");
              return;
         }
-        printf("\nEnter the updated quantity:");
         printProduct(p+found_index); 
     } else {
         printf("\nProduct with ID %d not found.", tempId);
@@ -156,7 +175,7 @@ void productByName(struct Product *p, int currCount){
     
     int found = 0;
     for(int i=0; i<currCount; i++){
-        if(strcmp((p+i)->name, name) == 0){
+        if(strstr((p+i)->name, name) != NULL){
             printf("\nYour Search Details:");
             printProduct(p+i); 
             found = 1;
@@ -167,7 +186,6 @@ void productByName(struct Product *p, int currCount){
          printf("\nProduct with Name %s not found.", name);
     }
 }
-
 
 void productByPriceRange(struct Product *p, int currCount){
     if (p == NULL || currCount <= 0) {
@@ -187,11 +205,23 @@ void productByPriceRange(struct Product *p, int currCount){
             found = 1;
         } 
     }
+
     if (!found) {
-         printf("\nNo products found under the price %.2f.", temPrice);
+         printf("\nNo products found above the price %.2f.", temPrice);
+    }
+    found=0;
+
+    for(int i=0; i<currCount; i++){
+        if((p+i)->price > temPrice){
+            printf("\nProduct above the Price %.2f: ", temPrice);
+            printProduct(p+i); 
+            found = 1;
+        } 
+    }
+    if (!found) {
+         printf("\nNo products found above the price %.2f.", temPrice);
     }
 }
-
 
 void deleteProduct(struct Product *p, int *currCount){
     if (p == NULL || *currCount <= 0) {
@@ -256,7 +286,7 @@ int main(){
     printf("Enter Details: ");
     for(int i=0; i<initialCount; i++){
         printf("Enter details for product %d: ", i+1); 
-        getAllDetails(inventry+i, i+1);
+        getAllDetails(inventry, i, i+1);
     } 
 
     int operationNumber;   
@@ -274,7 +304,7 @@ int main(){
             struct Product *temp = (struct Product*)realloc(inventry, currCount * sizeof(struct Product));
             if (temp != NULL) {
                 inventry = temp;
-                getAllDetails(inventry + (currCount - 1), currCount); 
+                getAllDetails(inventry, (currCount - 1), currCount); 
             } else {
                  printf("\nMemory reallocation failed");
                  currCount--; 
@@ -311,6 +341,5 @@ int main(){
     } while (operationNumber!=8);
 
     free(inventry);
-
     return 0;
 }
