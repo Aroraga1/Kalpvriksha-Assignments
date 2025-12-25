@@ -2,301 +2,280 @@
 #include<stdlib.h>
 #include<string.h>
 
-#define BLOCK_PER_FILE 100
-#define TOTAL_BLOLCKS 1024
-#define BLOCK_SIZE 512
-
-typedef struct Nav{
-    int ind;
-    struct Nav *prev;
-    struct Nav *next;
-} Nav;
+#define TOTAL_BLOCKS 1024
+#define BLOCKS_PER_FILE 100
+#define SIZE_OF_BLOCK 512
 
 typedef struct Node{
     char name[51];
     int isDirectory;
     int size;
     int blockCount;
-    int blockPointer[BLOCK_PER_FILE];
+    int blockPointer[BLOCKS_PER_FILE];
     struct Node *parent;
     struct Node *child;
     struct Node *next;
-}Node;
-
-char virtualDisk[TOTAL_BLOLCKS][BLOCK_SIZE];
-Nav *head = NULL;
-Nav *tail = NULL;
-Node *cwd = NULL;
-Node *root = NULL;
+} Node;
 
 
-void releaseBlocks();
-void freeBlock(int idx);
-Node *findInDirectory(Node *dir, char *name);
-void insertNode(Node *dir, Node *node);
-void removeNode(Node *dir, Node *node);
+typedef struct disk{
+    int index;
+    struct disk *prev;
+    struct disk *next;
+} disk;
+
+struct disk *head = NULL;
+struct disk *tail = NULL;
+struct Node *root = NULL;
+struct Node *cwd = NULL;
+char VD[TOTAL_BLOCKS][SIZE_OF_BLOCK]; 
+
+void allocateDisk();
 void mkdir(char *name);
+struct Node *findDir(struct Node *dir,char *name);
 void create(char *name);
-int allocateBlock();
-void write(char *name, char *data);
 void read(char *name);
-void delete(char *name);
+void write(char *name, char *data);
+void pwd();
 void rmdir(char *name);
+void df();
 void ls();
 void cd(char *name);
-void pwd(Node *dir);
-void df();
+void insertNode(struct Node *dir,struct Node *node);
+int allocateBlock();
+void removeNode(struct Node *cwd,struct Node *node);
+void freeBlocks(int index);
 
-
-void releaseBlocks(){
-    for(int i=0; i<TOTAL_BLOLCKS; i++){
-        Nav *block = malloc(sizeof(Nav));
-        block->ind=i;
-        block->prev=tail;
-        block->next=NULL;
-        if(tail){
-            tail->next = block;
-        }else{
-            head=block;
-        }
-        tail=block;
-    }
+void allocateDisk(){
+   for (int i = 0; i < TOTAL_BLOCKS; i++)
+   {
+    struct disk *block = malloc(sizeof(struct disk));
+    block->index = i;
+    block->next = NULL;
+    block->prev = tail;
+    if(tail) tail->next = block;
+    else head = block;
+    tail = block; 
+   }
 }
 
-void freeBlock(int idx) {
-    Nav *b = malloc(sizeof(Nav));
-    b->ind = idx;
-    b->next = NULL;
-    b->prev = tail;
-    if (tail) tail->next = b;
-    else head = b;
-    tail = b;
-}
-
-Node *findInDirectory(Node *dir, char *name){
+struct Node *findDir(struct Node *dir,char *name){
     if(!dir->child) return NULL;
-    Node *t = dir->child;
+    struct Node *t = dir->child;
     do{
-        if(strcmp(t->name,name)==0) return t;
+        if(strcmp(t->name,name)==0) return t;  
         t = t->next;
-    }while(t != dir->child);
+    }while(t!=dir->child);
     return NULL;
 }
 
-void insertNode(Node *dir, Node *node){
-    if(!dir->child){
-        dir->child=node;
-        node->next=node;
+void insertNode(struct Node *dir,struct Node *node){
+    if(dir->child){
+        struct Node *t = dir->child;
+        while(t->next!=dir->child) t = t->next;
+        t->next = node;
+        node->next = dir->child;
     }else{
-        Node *t = dir->child;
-        while (t->next != dir->child) t = t->next;
-        t->next=node;
-        node->next=dir->child;        
-    }
-}
-
-void removeNode(Node *dir, Node *node) {
-    if (!dir->child) return;
-    Node *t = dir->child;
-    Node *p = NULL;
-    do {
-        if (t == node) break;
-        p = t;
-        t = t->next;
-    } while (t != dir->child);
-    if (t != node) return;
-    if (t == dir->child && t->next == t) {
-        dir->child = NULL;
-    } else {
-        if (t == dir->child) dir->child = t->next;
-        if (p) p->next = t->next;
-        else {
-            Node *x = dir->child;
-            while (x->next != t) x = x->next;
-            x->next = t->next;
-        }
+        dir->child = node;
+        node->next = dir->child;
     }
 }
 
 void mkdir(char *name){
-    if(findInDirectory(cwd,name)){
-        printf("Directory Already Exist!");
+    if(findDir(cwd,name)){
+        printf("Dir already Exists!\n");
         return;
     }
-    Node *newDir = malloc(sizeof(Node));
-    strcpy(newDir->name,name);
-    newDir->isDirectory=1;
-    newDir->parent=cwd;
-    newDir->child=NULL;
-    insertNode(cwd,newDir);
-    printf("Directory %s created successfully!",newDir->name);
+    struct Node *t = malloc(sizeof(struct Node));
+    strcpy(t->name,name);
+    t->isDirectory=1;
+    t->child=NULL;
+    t->parent = cwd;
+    insertNode(cwd,t);
+    printf("Directory created successfully!\n");
 }
 
 void create(char *name){
-    if(findInDirectory(cwd,name)){
-        printf("File Already Exist!");
+    if(findDir(cwd,name)){
+        printf("same File/Directory already Exists!\n");
         return;
     }
-    Node *file = malloc(sizeof(Node));
-    strcpy(file->name,name);
-    file->isDirectory = 0;
-    file->size = 0;
-    file->blockCount = 0;
-    file->parent = cwd;
-    insertNode(cwd,file);
-    printf("The file %s created successfully!",name);
+    struct Node *t = malloc(sizeof(Node));
+    strcpy(t->name,name);
+    t->isDirectory=0;
+    t->child=NULL;  
+    t->parent=cwd;  
+    insertNode(cwd,t);
+    printf("File created successfully\n");
 }
 
-int allocateBlock() {
-    if (!head) return -1;
-    Nav *b = head;
-    int idx = b->ind;
-    head = b->next;
-    if (head) head->prev = NULL;
+int allocateBlock(){
+    if(!head) return -1;
+    struct disk *t = head;
+    int index = t->index;
+    head = t->next;
+    if(head) head->prev = NULL;
     else tail = NULL;
-    free(b);
-    return idx;
+    free(t);
+    return index;
 }
 
 void write(char *name, char *data){
-    Node *file = findInDirectory(cwd,name);
-    if(!file || file->isDirectory){
-        printf("File Do not Exist!");
-        return;
-    }
+    struct Node *f = findDir(cwd,name);
+    if(!f || f->isDirectory==1) printf("Invailid input!\n");
     int len = strlen(data);
-    int needed = (len + BLOCK_SIZE-1) / BLOCK_SIZE;
-    if(needed > BLOCK_PER_FILE){
-        printf("This file is too larger!");
+    int capturesBlock = (len+SIZE_OF_BLOCK-1)/SIZE_OF_BLOCK;
+    if(capturesBlock>BLOCKS_PER_FILE){
+        printf("File is too long!\n");
         return;
     }
-    for (int i = 0; i < needed; i++){
-        int b = allocateBlock();
-        if(b==-1){
-            printf("Disk full!");
+    for(int i=0; i<capturesBlock; i++){
+        int block = allocateBlock();
+        if(block==-1){
+            printf("Disk is full!\n");
             return;
         }
-        *(file->blockPointer+i) = b;
-        memset(virtualDisk+b,0,BLOCK_SIZE);
-        memcpy(virtualDisk+b,data+i*BLOCK_SIZE,BLOCK_SIZE);
+        *(f->blockPointer+i) = block;
+        memset(VD+block,0,SIZE_OF_BLOCK);
+        memcpy(VD+block,data+i*SIZE_OF_BLOCK,SIZE_OF_BLOCK);
     }
-    file->blockCount=needed;
-    file->size = len;
-    printf("Data written successfully!");
+    f->blockCount=capturesBlock;
+    f->size=len;
+    printf("Data written successfully!\n");
 }
 
 void read(char *name){
-        Node *file = findInDirectory(cwd, name);
-    if (!file || file->isDirectory) {
-        printf("Invalid file.\n");
+    struct Node *f = findDir(cwd,name);
+    if(!f || f->isDirectory==1){
+        printf("Invailid Input!\n");
         return;
     }
-    for (int i = 0; i < file->blockCount; i++)
-        printf("%s", virtualDisk+*(file->blockPointer+i));
-    printf("\n");
+    for(int i=0; i<f->blockCount; i++){
+        printf("%s\n",VD+(*(f->blockPointer+i)));
+    }
+}
+
+void removeNode(struct Node *dir,struct Node *node){
+    struct Node *t = dir->child; 
+    while(t->next!=node){
+        t = t->next;
+        if(t==dir->child) return;
+    } 
+    t->next = node->next;
+    if(node==dir->child) dir->child = (node->next==node) ? NULL : node->next;
+}
+
+void freeBlocks(int index){
+    struct disk *t = malloc(sizeof(struct disk));
+    t->index = index;
+    t->next=NULL;
+    t->prev=tail;
+    if(tail) tail->next = t;
+    else head = t;
+    tail = t;
 }
 
 void delete(char *name){
-    Node *file = findInDirectory(cwd, name);
-    if (!file || file->isDirectory) {
-        printf("Invalid file.\n");
+    struct Node *f = findDir(cwd,name);
+    if(!f || f->isDirectory==1){
+        printf("Invailid Input!\n");
         return;
     }
-    for (int i = 0; i < file->blockCount; i++)
-        freeBlock(*(file->blockPointer+i));
-    removeNode(cwd, file);
-    free(file);
-    printf("File deleted successfully.\n");
+    for(int i=0; i<f->blockCount; i++){
+        freeBlocks(*(f->blockPointer+i));
+    }
+    removeNode(cwd,f);
+    free(f);
+    printf("File deleted successfully!\n");
 }
 
-void rmdir(char *name) {
-    Node *dir = findInDirectory(cwd, name);
-    if (!dir || !dir->isDirectory || dir->child) {
-        printf("Directory not empty or invalid.\n");
+void rmdir(char *name){
+    struct Node *t = findDir(cwd,name);
+    if(!t || t->isDirectory==0 || t->child){
+        printf("Invailid Input!\n");
         return;
     }
-    removeNode(cwd, dir);
-    free(dir);
-    printf("Directory removed successfully.\n");
+    removeNode(cwd,t);
+    free(t);
+    printf("Directory deleted successfully!\n");
 }
 
-void ls() {
-    if (!cwd->child) {
-        printf("(empty)\n");
+void ls(){  
+    if(!cwd->child){
+        printf("Directory is empty\n");
         return;
     }
-    Node *t = cwd->child;
-    do {
-        printf("%s%s\n", t->name, t->isDirectory ? "/" : "");
-        t = t->next;
-    } while (t != cwd->child);
+    struct Node *t = cwd->child;
+    do{
+        printf("%s\n",t->name);
+        t=t->next;
+    }while(t!=cwd->child);
 }
 
-void cd(char *name) {
-    if (strcmp(name, "..") == 0) {
-        if (cwd->parent) cwd = cwd->parent;
+void cd(char *name){
+    if(strcmp(name,"..")==0){
+        if(cwd->parent) cwd = cwd->parent;
         return;
     }
-    Node *dir = findInDirectory(cwd, name);
-    if (!dir || !dir->isDirectory) {
-        printf("Invalid directory.\n");
+    struct Node *t = findDir(cwd,name);
+    if(!t || t->isDirectory==0){
+        printf("Invailid input!\n");
         return;
     }
-    cwd = dir;
+    cwd=t;
 }
 
-void pwd(Node *dir) {
-    if (!dir) return;
-    if (dir->parent) pwd(dir->parent);
-    if (strcmp(dir->name, "/") != 0) printf("/%s", dir->name);
+void pwd(){
+    if(cwd->parent && cwd!=root) printf("%s\n",cwd->parent->name);
 }
 
 void df() {
-    int freeCount = 0;
-    Nav *t = head;
-    while (t) {
-        freeCount++;
-        t = t->next;
+    int count = 0;
+    struct disk *d = head;
+    while(d) {
+        count++;
+        d = d->next;
     }
-    printf("Total Blocks: %d\n", TOTAL_BLOLCKS);
-    printf("Used Blocks: %d\n", TOTAL_BLOLCKS - freeCount);
-    printf("Free Blocks: %d\n", freeCount);
+    int used = TOTAL_BLOCKS - count;
+    float usagePercent = ((float)used / TOTAL_BLOCKS) * 100;
+
+    printf("total Blocks: %d\n", TOTAL_BLOCKS);
+    printf("used Blocks: %d\n", used);
+    printf("free Blocks: %d\n", count);
+    printf("disk Usage: %.2f%%\n", usagePercent);
 }
 
 int main(){
-    releaseBlocks();
-
-    root = malloc(sizeof(Node));
-    strcpy(root->name, "/");
-    root->isDirectory=1;
-    root->child=NULL;
-    root->parent=NULL;
-    cwd=root;
-
+    allocateDisk();
+    root = malloc(sizeof(struct Node));
+    strcpy(root->name,"/");
+    root->isDirectory = 1;
+    root->child = NULL;
+    root->parent = NULL;
+    cwd = root;
     char cmd[256];
-    printf("\nCompact VFS - ready. Type 'exit' to quit.");
+    printf("VFM is Ready to operate:\n");
     while(1){
-        printf("\n$%s>",cwd==root ? "/" : cwd->name);
+        struct Node *t = root;
+        printf("\n$%s>",(cwd==root) ? "/" : cwd->name);
         fgets(cmd,256,stdin);
-        cmd[strcspn(cmd,"\n")]=0;
-        if (strncmp(cmd, "mkdir ", 6) == 0) mkdir(cmd + 6);
-        else if (strncmp(cmd, "create ", 7) == 0) create(cmd + 7);
-        else if (strncmp(cmd, "write ", 6) == 0) {
-            char *f = strtok(cmd + 6, " ");
-            char *d = strtok(NULL, "\"");
-            if (f && d) write(f, d);
+        cmd[strcspn(cmd, "\n")] = 0;
+        if(strncmp(cmd,"mkdir ",6)==0) mkdir(cmd+6);
+        else if(strncmp(cmd,"create ",7)==0) create(cmd+7);
+        else if(strncmp(cmd,"write ",6)==0){
+            char *f = strtok(cmd+6, " ");
+            char *d = strtok(NULL,"\"");
+            if(f && d) write(f,d);
         }
-        else if (strncmp(cmd, "read ", 5) == 0) read(cmd + 5);
-        else if (strncmp(cmd, "delete ", 7) == 0) delete(cmd + 7);
-        else if (strncmp(cmd, "rmdir ", 6) == 0) rmdir(cmd + 6);
-        else if (strcmp(cmd, "ls") == 0) ls();
-        else if (strncmp(cmd, "cd ", 3) == 0) cd(cmd + 3);
-        else if (strcmp(cmd, "pwd") == 0) {
-            pwd(cwd);
-            printf("\n");
-        }
-        else if (strcmp(cmd, "df") == 0) df();
-        else if (strcmp(cmd, "exit") == 0) break;
+        if(strncmp(cmd,"read ",5)==0) read(cmd+5);
+        else if(strncmp(cmd,"delete ",7)==0) delete(cmd+7);
+        else if(strncmp(cmd,"rmdir ",6)==0) rmdir(cmd+6);
+        else if(strncmp(cmd,"cd ",3)==0) cd(cmd+3);
+        else if(strcmp(cmd,"ls")==0) ls();
+        else if(strcmp(cmd,"pwd")==0) pwd();
+        else if(strcmp(cmd,"df")==0) df();
+        else if(strcmp(cmd,"exit")==0) break;
+        else continue;
     }
     return 0;
 }
