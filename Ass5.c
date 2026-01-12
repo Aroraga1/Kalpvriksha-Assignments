@@ -15,7 +15,7 @@ struct Player{
     float battingAvg;
     float strikeRate;
     int wicket;
-    float ecoomicRate;
+    float economicRate;
     float performanceIndex;
     struct Player *next;
 };
@@ -61,7 +61,7 @@ void initializeTeamAndPlayers(){
                 break;
             }
         }
-        newPlayerNode->ecoomicRate=(players+i)->economyRate;
+        newPlayerNode->economicRate=(players+i)->economyRate;
         newPlayerNode->wicket=(players+i)->wickets;
         newPlayerNode->strikeRate=(players+i)->strikeRate;
         newPlayerNode->battingAvg=(players+i)->battingAverage;
@@ -75,7 +75,7 @@ void initializeTeamAndPlayers(){
         if(newPlayerNode->roleId  == 1){ 
             newPlayerNode->performanceIndex = (newPlayerNode->battingAvg * newPlayerNode->strikeRate) /100; 
         }else if(newPlayerNode->roleId  == 2){
-            newPlayerNode->performanceIndex  = (newPlayerNode->wicket * 2) + (100 - newPlayerNode->ecoomicRate);    
+            newPlayerNode->performanceIndex  = (newPlayerNode->wicket * 2) + (100 - newPlayerNode->economicRate);    
         }else if(newPlayerNode->roleId  == 3){
             newPlayerNode->performanceIndex = ((newPlayerNode->battingAvg * newPlayerNode->strikeRate ) / 100)+(newPlayerNode->wicket * 2);
         }
@@ -117,87 +117,83 @@ int getInput(void *var, char c){
     return 1;
 }
 
-void addPlayer(){
-    printf("\nEnter Team ID to add player: ");
-    int teamId,playerId,role,runs,wicket;
-    char name[51];
-    float battingAvg, StrickRate, economicRate;
-
-    if(!getInput(&teamId,'d')) return;
-    if(teamId<1 || teamId>10){
-        printf("\nteam id should be under 1 to 10, Enter again: ");
-        return;
-    }
-
-    printf("\nEnter Player Details: ");
-    printf("\nPlayer Id: ");
-    if(!getInput(&playerId,'d')) return;
-    if(playerId<1 || playerId>1000){
-        printf("\nplayer id must be under 1 to 1000, Enter again: ");
-        return;
-    }
+int isIdUnique(int id) {
     struct Player *p = pHead;
-    while(p){
-        if(p->playerId == playerId){
-        printf("Player ID already exists!");
-        return;
-        }
+    while(p) {
+        if(p->playerId == id) return 0;
         p = p->next;
-    }   
-    printf("\nName: ");
-    if(!getInput(&name,'s')) return;
-
-    printf("\nRole:");
-    printf("\nRole (1-Batsman, 2-Bowler, 3-All-rounder): ");
-    if(!getInput(&role,'d')) return;
-
-    printf("\nTotal runs: ");
-    if(!getInput(&runs,'d')) return;
-
-    printf("\nBatting Average: ");
-    if(!getInput(&battingAvg,'f')) return;
-
-    printf("\nStrike Rate: ");
-    if(!getInput(&StrickRate,'f')) return;
-    
-    printf("\nWickets: ");
-    if(!getInput(&wicket,'d')) return;
-
-    printf("\nEconomic Rate: ");
-    if(!getInput(&economicRate,'f')) return;
-
-    struct Player *newPlayer = malloc(sizeof(struct Player));
-    newPlayer->playerId = playerId;
-    newPlayer->teamId = teamId;
-    newPlayer->name = malloc(strlen(name)+1);
-    strcpy(newPlayer->name,name);
-    newPlayer->roleId = role;
-    newPlayer->totalRun = runs;
-    newPlayer->wicket = wicket;
-    newPlayer->battingAvg = battingAvg;
-    newPlayer->ecoomicRate = economicRate;
-    newPlayer->strikeRate = StrickRate;
-    newPlayer->next = NULL;
-
-    pTail->next = newPlayer;
-    pTail = newPlayer;
-
-    if(newPlayer->roleId  == 1){ 
-            newPlayer->performanceIndex = (newPlayer->battingAvg * newPlayer->strikeRate) /100; 
-    }else if(newPlayer->roleId  == 2){
-            newPlayer->performanceIndex  = (newPlayer->wicket * 2) + (100 - newPlayer->ecoomicRate);
-    }else if(newPlayer->roleId  == 3){
-            newPlayer->performanceIndex = ((newPlayer->battingAvg * newPlayer->strikeRate ) / 100)+(newPlayer->wicket * 2);
     }
+    return 1;
+}
+
+float calculatePI(int role, float avg, float sr, int wickets, float eco) {
+    if(role == 1) return (avg * sr) / 100;
+    if(role == 2) return (wickets * 2) + (100 - eco);
+    if(role == 3) return ((avg * sr) / 100) + (wickets * 2);
+    return 0;
+}
+
+void updateTeamCount(int teamId) {
     struct Team *t = tHead;
-    for(int i=0; i<teamCount; i++){
-        if(i==newPlayer->teamId){
+    for(int i = 0; t != NULL; i++) {
+        if(i == teamId) {
             t->totalPlayers++;
             break;
         }
-        t=t->next;
+        t = t->next;
     }
-    printf("Player added successfully to Team India!");
+}
+
+struct Player* createPlayerNode(int pId, int tId, char* name, int role, int runs, int wickets, float avg, float sr, float eco) {
+    struct Player *newP = malloc(sizeof(struct Player));
+    newP->playerId = pId;
+    newP->teamId = tId;
+    newP->name = malloc(strlen(name) + 1);
+    strcpy(newP->name, name);
+    newP->roleId = role;
+    newP->totalRun = runs;
+    newP->wicket = wickets;
+    newP->battingAvg = avg;
+    newP->strikeRate = sr;
+    newP->economicRate = eco;
+    newP->performanceIndex = calculatePI(role, avg, sr, wickets, eco);
+    newP->next = NULL;
+    return newP;
+}
+
+void addPlayer() {
+    int tId, pId, role, runs, wicket;
+    char name[51];
+    float bAvg, sRate, eRate;
+
+    printf("\nEnter Team ID (1-10): ");
+    if(!getInput(&tId, 'd') || tId < 1 || tId > 10) return;
+
+    printf("\nPlayer Id (1-1000): ");
+    if(!getInput(&pId, 'd') || pId < 1 || pId > 1000 || !isIdUnique(pId)) {
+        printf("Invalid or Duplicate ID!");
+        return;
+    }
+
+    printf("Name: "); if(!getInput(name, 's')) return;
+    printf("Role (1-Bat, 2-Bowl, 3-AR): "); if(!getInput(&role, 'd')) return;
+    printf("Runs: "); if(!getInput(&runs, 'd')) return;
+    printf("Avg: "); if(!getInput(&bAvg, 'f')) return;
+    printf("SR: "); if(!getInput(&sRate, 'f')) return;
+    printf("Wickets: "); if(!getInput(&wicket, 'd')) return;
+    printf("Eco: "); if(!getInput(&eRate, 'f')) return;
+
+    struct Player *newPlayer = createPlayerNode(pId, tId, name, role, runs, wicket, bAvg, sRate, eRate);
+    
+    if(!pHead) {
+        pHead = pTail = newPlayer;
+    } else {
+        pTail->next = newPlayer;
+        pTail = newPlayer;
+    }
+
+    updateTeamCount(tId);
+    printf("Player added successfully!");
 }
 
 void calAvgSR(){
@@ -236,7 +232,7 @@ void playersByTeamId(){
     float totalSR = 0.0;
     while (temp != NULL){
         if(temp->teamId == teamId)
-            printf("%d | %s |  %d | %0.1f | %.1f | %d | %.1f | %.2f\n", temp->playerId, temp->name,  temp->totalRun, temp->battingAvg, temp->strikeRate, temp->wicket, temp->ecoomicRate, temp->performanceIndex);
+            printf("%d | %s |  %d | %0.1f | %.1f | %d | %.1f | %.2f\n", temp->playerId, temp->name,  temp->totalRun, temp->battingAvg, temp->strikeRate, temp->wicket, temp->economicRate, temp->performanceIndex);
         if(temp->teamId == teamId && (temp->roleId == 1 || temp->roleId == 3)){
             totalSR += temp->strikeRate;
             teamPlayerCount++;
@@ -362,7 +358,7 @@ void specificPlayersByPerformance(){
         }
         strcpy(roleName, *(roles + roleId - 1));
         printf("\n%d | %s | %s | %s | %d | %.2f | %.2f | %d | %.2f | %.2f",
-        player->playerId,player->name,teamName,roleName,player->totalRun,player->battingAvg,player->strikeRate,player->wicket,player->ecoomicRate,player->performanceIndex);
+        player->playerId,player->name,teamName,roleName,player->totalRun,player->battingAvg,player->strikeRate,player->wicket,player->economicRate,player->performanceIndex);
         }
         player = player->next;
     }
